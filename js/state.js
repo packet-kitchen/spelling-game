@@ -16,6 +16,8 @@ export function defaultState() {
     settings: {
       childName: 'Amy',
       wordsPerMission: 8,
+      voiceEngine: 'piper', // 'piper' (natural voice) or 'browser' (Chromebook voices)
+      piperVoice: 'en_GB-cori-medium',
       voiceURI: '',
       rate: 0.85,
       keyboardLayout: 'qwerty',

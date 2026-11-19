@@ -1,8 +1,20 @@
 // Offline support. Files are served from the cache straight away and refreshed
 // in the background, so an update shows up the next time the game is opened.
 // Bump VERSION when releasing changes.
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CACHE = `unicorn-spelling-${VERSION}`;
+// Runtime files for the natural voice never change for a given path, so they
+// live in their own cache that survives app updates. (Rename the cache if a
+// vendor file is ever replaced.)
+const VENDOR_CACHE = 'unicorn-spelling-vendor-v1';
+const VENDOR_FILES = [
+  './vendor/ort/ort.wasm.min.mjs',
+  './vendor/ort/ort-wasm-simd-threaded.mjs',
+  './vendor/ort/ort-wasm-simd-threaded.wasm',
+  './vendor/piper/piper_phonemize.mjs',
+  './vendor/piper/piper_phonemize.wasm',
+  './vendor/piper/piper_phonemize.data',
+];
 const FILES = [
   './',
   './index.html',
@@ -31,22 +43,48 @@ const FILES = [
   './js/screens/test.js',
   './js/screens/stable.js',
   './js/screens/parent.js',
+  './js/voice/neural.js',
+  './js/voice/phrases.js',
+  './js/voice/piper-worker.js',
 ];
 
+async function cacheVendorFiles() {
+  const cache = await caches.open(VENDOR_CACHE);
+  for (const f of VENDOR_FILES) {
+    if (!(await cache.match(f))) await cache.add(f);
+  }
+}
+
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
+  event.waitUntil(Promise.all([
+    caches.open(CACHE).then((c) => c.addAll(FILES)),
+    // The voice runtime is big; if it can't be fetched now it is fetched when needed.
+    cacheVendorFiles().catch(() => {}),
+  ]).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('unicorn-spelling-') && k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('unicorn-spelling-') && k !== CACHE && k !== VENDOR_CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()));
 });
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
-  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  const url = new URL(req.url);
+  if (req.method !== 'GET' || url.origin !== self.location.origin) return;
+  if (url.pathname.includes('/vendor/')) {
+    event.respondWith(
+      caches.open(VENDOR_CACHE).then(async (cache) => {
+        const hit = await cache.match(req, { ignoreSearch: true });
+        if (hit) return hit;
+        const res = await fetch(req);
+        if (res && res.ok) cache.put(req, res.clone());
+        return res;
+      }));
+    return;
+  }
   event.respondWith(
     caches.open(CACHE).then(async (cache) => {
       const cached = await cache.match(req, { ignoreSearch: true });

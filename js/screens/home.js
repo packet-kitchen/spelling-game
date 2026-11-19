@@ -8,6 +8,7 @@ import { createBuddy } from '../buddy.js';
 import { getUnicorn, unicornSVG } from '../unicorns.js';
 import { btn } from './play.js';
 import { stageOf } from '../scheduler.js';
+import { voiceStatus, onVoiceStatus } from '../voice/neural.js';
 
 export function startScreen(root) {
   let started = false;
@@ -46,6 +47,7 @@ export function homeScreen(root, params = {}) {
       h('div', { class: 'meter-text' }, gifts > 0 ? 'A surprise is waiting!' : `${gp.need - gp.have} more ⭐ for a surprise`));
 
   const mastered = entries.filter((e) => stageOf(state.progress[e.key]) === 'mastered').length;
+  const voiceChip = h('span', { class: 'voice-chip', hidden: true });
 
   const menu = h('div', { class: 'menu' },
     gifts > 0 ? btn(h('span', {}, '🎁 Open your surprise!'), 'menu-btn gift-btn', () => { sfx.pop(); go('gift'); }) : null,
@@ -65,8 +67,18 @@ export function homeScreen(root, params = {}) {
     h('main', { class: 'home-main' }, buddy.el, menu),
     h('footer', { class: 'home-foot' },
       h('span', { class: 'mastered' }, mastered ? `🏅 ${mastered} words mastered` : ''),
+      voiceChip,
       btn('⚙️ Grown-ups', 'grownups', () => go('parent'))));
   root.append(screen);
+  const showVoice = (st) => {
+    const busy = st.status === 'downloading' || st.status === 'starting';
+    voiceChip.hidden = !busy;
+    voiceChip.textContent = st.status === 'downloading'
+      ? `🎙️ Getting the unicorn voice… ${Math.round((st.progress || 0) * 100)}%`
+      : '🎙️ Getting the unicorn voice ready…';
+  };
+  showVoice(voiceStatus);
+  const stopVoiceChip = onVoiceStatus(showVoice);
 
   const hi = name ? `Hi ${name}!` : 'Hi there!';
   let text;
@@ -90,4 +102,5 @@ export function homeScreen(root, params = {}) {
   });
 
   if (gifts > 0) setTimeout(() => sparkleBurst(menu.firstChild, 14), 300);
+  return stopVoiceChip;
 }

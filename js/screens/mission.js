@@ -6,6 +6,8 @@ import { sfx } from '../sfx.js';
 import { go } from '../router.js';
 import { createPlay, ROUNDS, celebrate, btn } from './play.js';
 import { createBuddy } from '../buddy.js';
+import { prefetch } from '../voice/neural.js';
+import { entryPhrases } from '../voice/phrases.js';
 
 export function missionScreen(root, params = {}) {
   const entries = params.entries && params.entries.length
@@ -15,6 +17,7 @@ export function missionScreen(root, params = {}) {
   if (!entries.length) return noWords(root);
 
   const ctx = createPlay(root, { kind: 'mission' });
+  prefetch(entryPhrases(entries), 'soon');
   run(ctx, entries, root, params);
   return () => ctx.destroy();
 }
@@ -92,9 +95,8 @@ function missionEnd(root, { words, stars, firstTry }) {
   root.append(h('div', { class: 'screen end-screen' }, h('div', { class: 'end-layout' }, buddy.el, panel)));
   sfx.fanfare();
   setTimeout(() => sparkleBurst(panel, 30), 200);
-  const msg = gifts > 0
-    ? `Hooray! Mission complete! You earned ${stars} stars. And you have a surprise! Tap the present.`
-    : `Hooray! Mission complete! You earned ${stars} stars.`;
+  const msg = ['Hooray! Mission complete!', `You earned ${stars} stars.`];
+  if (gifts > 0) msg.push('And you have a surprise! Tap the present.');
   buddy.talk(gifts > 0 ? 'Hooray! You have a surprise!' : 'Hooray! You did it!', msg);
 }
 

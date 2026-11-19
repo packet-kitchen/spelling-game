@@ -157,6 +157,8 @@ h1, h2, h3 { line-height: 1.15; }
 body.calm .gift-btn { animation: none; }
 .home-foot { display: flex; justify-content: space-between; align-items: center; min-height: 40px; }
 .mastered { font-size: 18px; color: var(--ink-soft); }
+.voice-chip { font-size: 15px; color: var(--ink-soft); background: rgba(255, 255, 255, 0.7); padding: 4px 12px; border-radius: 99px; }
+.voice-chip[hidden] { display: none; }
 .grownups { font-size: 15px; padding: 0.45em 1em; opacity: 0.85; box-shadow: 0 3px 0 var(--lav-line); }
 
 /* ------------------------------------------------------------------ buddy */
@@ -468,6 +470,14 @@ select.text-input { width: auto; min-width: 260px; }
 .range-row input { width: 260px; accent-color: var(--purple); }
 .hidden-file { display: none; }
 .danger-zone { border: 2px solid #ffe0e8; }
+.engine-options { display: grid; gap: 10px; margin-bottom: 14px; }
+.engine-option { display: flex; gap: 12px; align-items: flex-start; border: 2px solid var(--lav); border-radius: 14px; padding: 12px 14px; cursor: pointer; }
+.engine-option.on { border-color: var(--purple); background: #faf6ff; }
+.engine-option input { width: 22px; height: 22px; margin-top: 2px; accent-color: var(--purple); flex: none; }
+.voice-status { margin: -4px 0 14px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.voice-status .meter-bar { width: min(420px, 100%); }
+.voice-status p { margin: 0; }
+.credit { font-size: 14px; margin-top: -6px; }
 
 .word-rows { display: flex; flex-direction: column; }
 .word-row { display: grid; grid-template-columns: minmax(200px, auto) 1fr auto; gap: 14px; align-items: center; padding: 10px 0; border-bottom: 1px solid #f2ecfb; }

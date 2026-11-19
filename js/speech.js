@@ -1,7 +1,8 @@
-// Text-to-speech using the browser's built-in voices.
-// On a Chromebook the best voices are "Google UK English Female/Male".
+// Text-to-speech. Uses the natural Piper voice when it is ready (see
+// voice/neural.js), otherwise the Chromebook's built-in voices.
 
 import { state } from './state.js';
+import * as neural from './voice/neural.js';
 
 const synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
 let voices = [];
@@ -49,6 +50,13 @@ export function chosenVoice() {
 
 // Speak one piece of text. Always resolves (even if speech fails or hangs).
 export function speak(text, opts = {}) {
+  if (text && String(text).trim() && neural.wanted()) {
+    return neural.play(text).then((ok) => (ok ? undefined : browserSpeak(text, opts)));
+  }
+  return browserSpeak(text, opts);
+}
+
+function browserSpeak(text, opts = {}) {
   return new Promise((resolve) => {
     if (!synth || !text) return resolve();
     const u = new SpeechSynthesisUtterance(text);
@@ -85,19 +93,22 @@ const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 export async function say(...parts) {
   const my = ++token;
   stop(false);
+  const list = parts.flat().filter((p) => typeof p === 'number' || (p && String(p).trim()));
+  neural.prefetchNow(list.filter((p) => typeof p === 'string'));
   await pause(40); // Chrome sometimes drops speech queued straight after cancel()
-  for (const p of parts.flat()) {
+  for (const p of list) {
     if (my !== token) return false;
     if (typeof p === 'number') { await pause(p); continue; }
     await speak(p);
     if (my !== token) return false;
-    await pause(220);
+    await pause(neural.isReady() ? 120 : 220);
   }
   return my === token;
 }
 
 export function stop(bumpToken = true) {
   if (bumpToken) token++;
+  neural.stop();
   if (synth) {
     try { synth.cancel(); } catch { /* ignore */ }
   }

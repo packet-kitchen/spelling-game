@@ -60,7 +60,7 @@ export function stableScreen(root) {
       h('div', { class: 'count' }, `${state.unicorns.length} / ${UNICORNS.length}`)),
     h('p', { class: 'hint-text' }, 'Tap a unicorn to make it your buddy.'),
     grid));
-  say(`You have ${state.unicorns.length} unicorn friends. Tap a unicorn to make it your buddy.`);
+  say(state.unicorns.length === 1 ? 'You have 1 unicorn friend.' : `You have ${state.unicorns.length} unicorn friends.`, 'Tap a unicorn to make it your buddy.');
   setKeyHandler(() => false);
 }
 
@@ -95,7 +95,7 @@ export function giftScreen(root) {
       sparkleBurst(pic, 36);
       title.textContent = `Meet ${u.name}!`;
       hint.textContent = `${u.name} wants to be your friend.`;
-      say(`Wow! Meet ${u.name}! ${u.name} wants to be your friend.`);
+      say(`Wow! Meet ${u.name}!`, `${u.name} wants to be your friend.`);
       const more = pendingGifts() > 0;
       revealed = true;
       buttons.append(

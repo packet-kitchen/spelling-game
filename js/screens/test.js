@@ -8,12 +8,15 @@ import { sfx } from '../sfx.js';
 import { go } from '../router.js';
 import { createPlay, roundTest, btn, wordEl } from './play.js';
 import { createBuddy } from '../buddy.js';
+import { prefetch } from '../voice/neural.js';
+import { entryPhrases } from '../voice/phrases.js';
 
 export function testScreen(root) {
   const list = focusList();
   const entries = focusEntries();
   if (!list || !entries.length) return noList(root);
 
+  prefetch([...entries.map((e, i) => `Number ${i + 1}.`), ...entryPhrases(entries)], 'soon');
   const buddy = createBuddy({ cls: 'big' });
   const start = btn('📝 Start the test', 'primary big', () => begin());
   root.append(h('div', { class: 'screen end-screen' },
@@ -108,15 +111,15 @@ function results_(root, { entries, results, right, stars }) {
 
   let msg;
   if (right === total) {
-    msg = `Wow! You got all ${total} right! You get 5 bonus stars!`;
+    msg = [`Wow! You got all ${total} right!`, 'You get 5 bonus stars!'];
     sfx.fanfare();
     setTimeout(() => sparkleBurst(panel, 34), 200);
   } else if (right >= total * 0.7) {
-    msg = `Brilliant! You got ${right} out of ${total}. Let's practise the tricky ones.`;
+    msg = ['Brilliant!', `You got ${right} out of ${total}.`, "Let's practise the tricky ones."];
     sfx.good();
     setTimeout(() => sparkleBurst(panel, 18), 200);
   } else {
-    msg = `Good effort! You got ${right} out of ${total}. Practising will help you remember the tricky ones.`;
+    msg = ['Good effort!', `You got ${right} out of ${total}.`, 'Practising will help you remember the tricky ones.'];
     sfx.good();
   }
   buddy.talk(`${right} out of ${total}! ${right === total ? 'Perfect!' : 'Well done!'}`, msg);

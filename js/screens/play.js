@@ -9,9 +9,11 @@ import { go, setKeyHandler } from '../router.js';
 import { createBuddy } from '../buddy.js';
 import { starsFor } from '../scheduler.js';
 
-const PRAISE = ['Brilliant!', 'Super spelling!', 'Magical!', 'Fantastic!', 'Well done!', 'Amazing!',
-  "You're a star!", 'Sparkly spelling!', 'Wonderful!', 'Unicorn-tastic!', 'Perfect!', 'Hooray!'];
-const NEARLY = ['So close!', 'Nearly!', 'Good try!', 'Nearly there!'];
+export const PRAISE = ['Brilliant!', 'Super spelling!', 'Magical!', 'Fantastic!', 'Well done!', 'Amazing!',
+  "You're a star!", 'Sparkly spelling!', 'Wonderful!', 'Super-duper!', 'Perfect!', 'Hooray!'];
+export const PRAISE_SECOND = ['Well done! You got it!', 'Yes! You did it!', 'Great remembering!'];
+export const PRAISE_EFFORT = ['Well done for trying hard!', 'Good work! Keep practising.', 'You are getting there!'];
+export const NEARLY = ['So close!', 'Nearly!', 'Good try!', 'Nearly there!'];
 
 export function btn(label, cls, onClick, attrs = {}) {
   const b = h('button', { class: 'btn ' + (cls || ''), type: 'button', tabindex: '-1', ...attrs }, label);
@@ -284,8 +286,8 @@ function feedbackPhase(ctx, e, typed, cmp, { final = false } = {}) {
     ctx.buddy.setMood('normal');
     const n = [...e.text].filter((c) => c !== ' ').length;
     const nearly = pick(NEARLY);
-    const got = cmp.matches > 0 ? ` You got ${cmp.matches} out of ${n} letters right.` : '';
-    ctx.buddy.talk(`${nearly}${got} Look at the pink letters.`, [`${nearly}${got}`, 'Look at the pink letters.', e.text]);
+    const got = cmp.matches > 0 ? `You got ${cmp.matches} out of ${n} letters right.` : '';
+    ctx.buddy.talk(`${nearly} ${got} Look at the pink letters.`.replace(/\s+/g, ' '), [nearly, got, 'Look at the pink letters.', e.text].filter(Boolean));
     ctx.setKeys((k) => {
       if (k === 'Enter') { done(); return true; }
       return true;
@@ -564,8 +566,8 @@ export async function celebrate(ctx, e, outcome) {
   ctx.buddy.bounce();
   let text;
   if (outcome === 'first') text = pick(PRAISE);
-  else if (outcome === 'second') text = pick(['Well done! You got it!', 'Yes! You did it!', 'Great remembering!']);
-  else text = pick(['Well done for trying hard!', 'Good work! Keep practising.', 'You are getting there!']);
+  else if (outcome === 'second') text = pick(PRAISE_SECOND);
+  else text = pick(PRAISE_EFFORT);
   const name = state.settings.childName && Math.random() < 0.35 ? `, ${state.settings.childName}` : '';
   const shown = text.replace(/!$/, `${name}!`);
   await ctx.buddy.talk(`${shown}  +${stars} ⭐`, shown);

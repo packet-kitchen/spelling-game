@@ -9,6 +9,8 @@ import { stageOf, STAGE_LABEL, blankProgress } from '../scheduler.js';
 import { englishVoices, chosenVoice, sayWord, say, speechAvailable } from '../speech.js';
 import { go, setKeyHandler } from '../router.js';
 import { UNICORNS } from '../unicorns.js';
+import * as voice from '../voice/neural.js';
+import { commonPhrases, entryPhrases } from '../voice/phrases.js';
 
 // ---------------------------------------------------------------------------
 // Gate: a sum that a 7-year-old is unlikely to know yet.
@@ -72,7 +74,8 @@ export function parentHome(root, params = {}) {
 
   if (currentTab === 'lists') listsTab(body);
   else if (currentTab === 'progress') progressTab(body);
-  else settingsTab(body);
+  else return settingsTab(body);
+  return undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -291,6 +294,7 @@ export function listEditor(root, { id }) {
     if (makeFocus) state.focusListId = draft.id;
     else if (state.focusListId === draft.id) state.focusListId = null;
     saveNow();
+    voice.prefetch(entryPhrases(draft.words), makeFocus ? 'soon' : 'later');
     currentTab = 'lists';
     go('parentHome');
   };
@@ -443,29 +447,8 @@ function settingsTab(body) {
   const perMission = h('select', { class: 'text-input', onchange: (e) => set('wordsPerMission', Number(e.target.value)) },
     [5, 6, 8, 10, 12].map((n) => h('option', { value: n, selected: s.wordsPerMission === n ? true : undefined }, `${n} words`)));
 
-  const voiceSel = h('select', { class: 'text-input', onchange: (e) => set('voiceURI', e.target.value) });
-  const fillVoices = () => {
-    clear(voiceSel);
-    const vs = englishVoices();
-    const cur = chosenVoice();
-    voiceSel.append(h('option', { value: '' }, 'Automatic (British English if available)'));
-    for (const v of vs) {
-      voiceSel.append(h('option', { value: v.voiceURI, selected: s.voiceURI === v.voiceURI ? true : undefined }, `${v.name} (${v.lang})`));
-    }
-    voiceNote.textContent = !speechAvailable()
-      ? 'This browser cannot speak. Please use Google Chrome.'
-      : !vs.length
-        ? 'No English voices found yet. On a Chromebook they appear after a moment, or when the Chromebook is online.'
-        : cur ? `Using: ${cur.name}` : '';
-  };
-  const voiceNote = h('p', { class: 'muted' });
-  setTimeout(fillVoices, 0);
-  if (window.speechSynthesis) window.speechSynthesis.addEventListener?.('voiceschanged', fillVoices);
-
-  const rate = h('input', { type: 'range', min: '0.6', max: '1.1', step: '0.05', value: String(s.rate), oninput: (e) => { set('rate', Number(e.target.value)); rateOut.textContent = rateLabel(); } });
-  const rateLabel = () => (s.rate < 0.8 ? 'Slow' : s.rate < 0.95 ? 'Steady' : 'Normal');
-  const rateOut = h('span', { class: 'muted' }, rateLabel());
-
+  const voiceArea = h('div', {});
+  const stopListening = voiceCard(voiceArea, s, set);
   const check = (key, label, after) => h('label', { class: 'check-field' },
     h('input', { type: 'checkbox', checked: s[key] ? true : undefined, onchange: (e) => { set(key, e.target.checked); if (after) after(); } }),
     h('span', {}, label));
@@ -482,13 +465,7 @@ function settingsTab(body) {
       h('h2', {}, 'Player'),
       h('label', { class: 'field' }, h('span', {}, "Child's first name (used in greetings)"), name),
       h('label', { class: 'field' }, h('span', {}, 'Words in each Magic Mission'), perMission)),
-    h('section', { class: 'card' },
-      h('h2', {}, 'Voice'),
-      h('label', { class: 'field' }, h('span', {}, 'Voice'), voiceSel),
-      voiceNote,
-      h('label', { class: 'field' }, h('span', {}, 'Speaking speed'), h('div', { class: 'range-row' }, rate, rateOut)),
-      h('div', { class: 'row-buttons' },
-        h('button', { class: 'btn', type: 'button', onclick: () => say('Hello! Can you spell, beautiful? The rainbow looked beautiful.') }, '🔊 Test the voice'))),
+    h('section', { class: 'card' }, h('h2', {}, 'Voice'), voiceArea),
     h('section', { class: 'card' },
       h('h2', {}, 'Game'),
       check('showKeyboard', 'Show the on-screen keyboard (handy for touchscreens; the Chromebook keys always work)'),
@@ -509,6 +486,110 @@ function settingsTab(body) {
         h('button', { class: 'btn danger', type: 'button', onclick: resetProgress }, 'Reset progress (keep lists and settings)'),
         h('button', { class: 'btn danger', type: 'button', onclick: resetAll }, 'Delete everything'))),
     h('p', { class: 'muted' }, 'Unicorn Spelling · words from the National Curriculum in England (Year 2) · no accounts, no adverts, nothing leaves this device.'));
+  return stopListening;
+}
+
+// Voice settings: natural (Piper) voice or the Chromebook's own voices.
+function voiceCard(area, s, set) {
+  const unsubs = [];
+  const draw = () => {
+    unsubs.splice(0).forEach((fn) => fn());
+    clear(area);
+    const natural = s.voiceEngine === 'piper';
+    const engine = (value, title, note) => h('label', { class: 'engine-option' + (s.voiceEngine === value ? ' on' : '') },
+      h('input', {
+        type: 'radio', name: 'engine', value, checked: s.voiceEngine === value ? true : undefined,
+        onchange: () => { set('voiceEngine', value); voice.settingsChanged(); draw(); },
+      }),
+      h('span', {}, h('b', {}, title), h('br'), h('span', { class: 'muted' }, note)));
+
+    area.append(h('div', { class: 'engine-options' },
+      engine('piper', 'Natural voice (recommended)', 'Made on this Chromebook. Downloads once (about 63 MB), then works offline. Nothing is sent anywhere.'),
+      engine('browser', 'Chromebook voice', "Uses the voices built into Chrome. No download, but they sound more robotic.")));
+
+    if (natural) {
+      const sel = h('select', { class: 'text-input', onchange: (e) => { set('piperVoice', e.target.value); voice.settingsChanged(); } },
+        voice.PIPER_VOICES.map((v) => h('option', { value: v.id, selected: s.piperVoice === v.id ? true : undefined }, `${v.name} – ${v.about}`)));
+      const statusLine = h('div', { class: 'voice-status' });
+      const updateStatus = () => drawStatus(statusLine);
+      unsubs.push(voice.onVoiceStatus(updateStatus));
+      updateStatus();
+      area.append(h('label', { class: 'field' }, h('span', {}, 'Natural voice'), sel), statusLine,
+        h('p', { class: 'muted credit' }, 'Natural voices by the Piper project. Cori is the voice of Cori Samuel, a LibriVox volunteer reader (Hi-Fi TTS dataset, CC BY 4.0).'));
+    } else {
+      const sel = h('select', { class: 'text-input', onchange: (e) => set('voiceURI', e.target.value) });
+      const note = h('p', { class: 'muted' });
+      const fill = () => {
+        clear(sel);
+        const vs = englishVoices();
+        const cur = chosenVoice();
+        sel.append(h('option', { value: '' }, 'Automatic (British English if available)'));
+        for (const v of vs) sel.append(h('option', { value: v.voiceURI, selected: s.voiceURI === v.voiceURI ? true : undefined }, `${v.name} (${v.lang})`));
+        note.textContent = !speechAvailable()
+          ? 'This browser cannot speak. Please use Google Chrome.'
+          : !vs.length
+            ? 'No English voices found yet. On a Chromebook they appear after a moment, or when the Chromebook is online.'
+            : cur ? `Using: ${cur.name}` : '';
+      };
+      setTimeout(fill, 0);
+      if (window.speechSynthesis && window.speechSynthesis.addEventListener) {
+        window.speechSynthesis.addEventListener('voiceschanged', fill);
+        unsubs.push(() => window.speechSynthesis.removeEventListener('voiceschanged', fill));
+      }
+      area.append(h('label', { class: 'field' }, h('span', {}, 'Chromebook voice'), sel), note);
+    }
+
+    const rateLabel = () => (s.rate < 0.8 ? 'Slow' : s.rate < 0.95 ? 'Steady' : 'Normal');
+    const rateOut = h('span', { class: 'muted' }, rateLabel());
+    const rate = h('input', {
+      type: 'range', min: '0.6', max: '1.1', step: '0.05', value: String(s.rate),
+      oninput: (e) => { set('rate', Number(e.target.value)); rateOut.textContent = rateLabel(); },
+      onchange: () => voice.prefetch(commonPhrases(), 'later'),
+    });
+    area.append(
+      h('label', { class: 'field' }, h('span', {}, 'Speaking speed'), h('div', { class: 'range-row' }, rate, rateOut)),
+      h('div', { class: 'row-buttons' },
+        h('button', { class: 'btn', type: 'button', onclick: () => say('Hello!', 'Can you spell, beautiful?', 'The rainbow looked beautiful.') }, '🔊 Test the voice'),
+        natural ? h('button', { class: 'btn small', type: 'button', onclick: removeVoices }, 'Remove downloaded voices') : null));
+  };
+
+  async function removeVoices() {
+    const ok = await dialog({
+      title: 'Remove downloaded voices?',
+      body: 'This frees up space. The voice downloads again the next time it is needed.',
+      buttons: [{ label: 'Cancel', value: false }, { label: 'Remove', value: true, class: 'danger' }],
+    });
+    if (!ok) return;
+    await voice.removeDownloads();
+    if (s.voiceEngine === 'piper') voice.ensureLoaded();
+  }
+
+  draw();
+  return () => unsubs.forEach((fn) => fn());
+}
+
+function drawStatus(el) {
+  clear(el);
+  const st = voice.voiceStatus;
+  const name = voice.voiceById(state.settings.piperVoice).name;
+  if (st.status === 'unsupported') {
+    el.append(h('p', { class: 'form-msg error' }, 'This browser cannot run the natural voice. The Chromebook voice will be used.'));
+  } else if (st.status === 'ready') {
+    el.append(h('p', { class: 'form-msg' }, `✅ ${name} is ready.`));
+  } else if (st.status === 'downloading') {
+    const pct = Math.round((st.progress || 0) * 100);
+    el.append(
+      h('p', { class: 'muted' }, `⬇️ Downloading ${name}… ${pct}%  (the Chromebook voice is used until it's ready)`),
+      h('div', { class: 'meter-bar' }, h('div', { class: 'meter-fill', style: { width: pct + '%' } })));
+  } else if (st.status === 'starting') {
+    el.append(h('p', { class: 'muted' }, `⏳ Getting ${name} ready…`));
+  } else if (st.status === 'error') {
+    el.append(h('p', { class: 'form-msg error' }, `⚠️ ${st.error}`),
+      h('button', { class: 'btn small', type: 'button', onclick: () => voice.settingsChanged() }, 'Try again'));
+  } else {
+    el.append(h('p', { class: 'muted' }, 'Not downloaded yet.'),
+      h('button', { class: 'btn small primary', type: 'button', onclick: () => voice.ensureLoaded() }, '⬇️ Download now'));
+  }
 }
 
 function backup() {

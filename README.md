@@ -64,11 +64,22 @@ Child's name, words per mission, voice and speaking speed, on-screen keyboard
 
 ### Voice
 
-The game uses Chrome's built-in speech. On a Chromebook the best voice is usually
-**Google UK English Female**, which needs an internet connection. If no British
-voice is listed under Settings → Voice, check the Chromebook is online. ChromeOS's
-own text-to-speech settings (under Accessibility) can add more voices; the menu
-names vary a little between ChromeOS versions.
+The game speaks with a **natural British voice ("Cori")** generated on the
+Chromebook itself by [Piper](https://github.com/rhasspy/piper), an open-source
+neural text-to-speech engine.
+
+* The first time the game opens it downloads the voice (about 63 MB, from Hugging Face)
+  in the background. The home screen shows *"Getting the unicorn voice…"* while this
+  happens, and the Chromebook's own voice is used until it is ready.
+* After that it works **offline**. Each phrase is saved once it has been made, so
+  instructions, praise and words that come up again play instantly.
+* This week's words are prepared in the background when a list is saved, and each
+  mission prepares its words as it starts.
+* Nothing is sent anywhere: the text is turned into speech on the Chromebook.
+
+**Settings → Voice** lets you pick another British voice (Jenny, Alba, Southern),
+change the speaking speed, switch back to the Chromebook's built-in voices, or
+remove the downloaded voice to free up space.
 
 ## Putting it on the Chromebook
 
@@ -109,6 +120,10 @@ js/wordutils.js       comparing spellings, tricky-bit guessing, parsing pasted l
 js/scheduler.js       the learning ladder, spaced repetition, choosing mission words
 js/state.js           saved data (localStorage), lists, rewards
 js/speech.js          text-to-speech
+js/voice/neural.js    natural voice: download, background generation, saved clips, playback
+js/voice/piper-worker.js  the worker that runs Piper (phonemizer + ONNX model)
+js/voice/phrases.js   phrases prepared in advance
+vendor/               onnxruntime-web and the espeak-ng/piper-phonemize WebAssembly build (see vendor/NOTICE.md)
 js/sfx.js             sound effects (Web Audio, no files)
 js/unicorns.js        unicorn artwork (SVG) and the collection
 js/keyboard.js        on-screen keyboard
@@ -119,3 +134,6 @@ sw.js                 offline cache. Bump VERSION when releasing changes
 The font is [Andika](https://software.sil.org/andika/) by SIL (Open Font
 License, see `fonts/OFL-LICENSE.txt`). It is designed for early readers and
 uses the single-storey "a" and "g" that children learn to write.
+
+The voice runtime and voices are credited in `vendor/NOTICE.md`. Cori is the voice
+of Cori Samuel, a LibriVox volunteer reader (Hi-Fi TTS dataset, CC BY 4.0).
