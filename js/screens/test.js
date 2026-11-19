@@ -8,7 +8,7 @@ import { sfx } from '../sfx.js';
 import { go } from '../router.js';
 import { createPlay, roundTest, btn, wordEl } from './play.js';
 import { createBuddy } from '../buddy.js';
-import { prefetch } from '../voice/neural.js';
+import { prepare } from '../speech.js';
 import { entryPhrases } from '../voice/phrases.js';
 
 export function testScreen(root) {
@@ -16,7 +16,7 @@ export function testScreen(root) {
   const entries = focusEntries();
   if (!list || !entries.length) return noList(root);
 
-  prefetch([...entries.map((e, i) => `Number ${i + 1}.`), ...entryPhrases(entries)], 'soon');
+  prepare([...entries.map((e, i) => `Number ${i + 1}.`), ...entryPhrases(entries)], 'soon');
   const buddy = createBuddy({ cls: 'big' });
   const start = btn('📝 Start the test', 'primary big', () => begin());
   root.append(h('div', { class: 'screen end-screen' },
@@ -28,7 +28,6 @@ export function testScreen(root) {
         h('div', { class: 'end-buttons' }, start, btn('🏠 Home', 'big', () => go('home')))))));
   buddy.talk('Ready for your practice test?', [
     'This is a practice spelling test, just like at school.',
-    `There are ${entries.length} words.`,
     'Listen to each word, spell it, and press next. Press start when you are ready.']);
 
   let ctx = null;
@@ -111,15 +110,15 @@ function results_(root, { entries, results, right, stars }) {
 
   let msg;
   if (right === total) {
-    msg = [`Wow! You got all ${total} right!`, 'You get 5 bonus stars!'];
+    msg = ['Wow! You got them all right!', 'You get 5 bonus stars!'];
     sfx.fanfare();
     setTimeout(() => sparkleBurst(panel, 34), 200);
   } else if (right >= total * 0.7) {
-    msg = ['Brilliant!', `You got ${right} out of ${total}.`, "Let's practise the tricky ones."];
+    msg = ['Brilliant!', "Let's practise the tricky ones."];
     sfx.good();
     setTimeout(() => sparkleBurst(panel, 18), 200);
   } else {
-    msg = ['Good effort!', `You got ${right} out of ${total}.`, 'Practising will help you remember the tricky ones.'];
+    msg = ['Good effort!', 'Practising will help you remember the tricky ones.'];
     sfx.good();
   }
   buddy.talk(`${right} out of ${total}! ${right === total ? 'Perfect!' : 'Well done!'}`, msg);

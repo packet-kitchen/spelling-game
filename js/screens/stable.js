@@ -33,7 +33,7 @@ export function stableScreen(root) {
         h('div', { class: 'card-name' }, isNext && !gp.done ? `⭐ ${gp.have} / ${gp.need}` : '???'),
       ], 'u-card locked' + (isNext ? ' next' : ''), () => {
         sfx.wobble();
-        say(isNext ? `Earn ${Math.max(0, gp.need - gp.have)} more stars to find this unicorn!` : 'Keep spelling to find this unicorn!');
+        say('Keep spelling to find this unicorn!');
       });
       grid.append(card);
     }
@@ -48,7 +48,7 @@ export function stableScreen(root) {
       say(`${u.name} is your buddy now!`);
       draw();
     } else {
-      say(`Hello! I'm ${u.name}!`);
+      say('Hello!');
     }
   }
 
@@ -60,7 +60,7 @@ export function stableScreen(root) {
       h('div', { class: 'count' }, `${state.unicorns.length} / ${UNICORNS.length}`)),
     h('p', { class: 'hint-text' }, 'Tap a unicorn to make it your buddy.'),
     grid));
-  say(state.unicorns.length === 1 ? 'You have 1 unicorn friend.' : `You have ${state.unicorns.length} unicorn friends.`, 'Tap a unicorn to make it your buddy.');
+  say('Here are all your unicorn friends!', 'Tap a unicorn to make it your buddy.');
   setKeyHandler(() => false);
 }
 
@@ -95,7 +95,7 @@ export function giftScreen(root) {
       sparkleBurst(pic, 36);
       title.textContent = `Meet ${u.name}!`;
       hint.textContent = `${u.name} wants to be your friend.`;
-      say(`Wow! Meet ${u.name}!`, `${u.name} wants to be your friend.`);
+      say('Wow!', `Meet ${u.name}!`, 'A new unicorn friend wants to play with you!');
       const more = pendingGifts() > 0;
       revealed = true;
       buttons.append(

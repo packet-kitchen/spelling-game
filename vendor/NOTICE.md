@@ -44,6 +44,11 @@ SOFTWARE.
   and the data package was trimmed to English only (other languages' `*_dict` files removed;
   the file table in the loader was updated to match). `piper_phonemize.wasm` is unmodified.
 
+## Recorded voice clips (`audio/alice/`)
+
+Spoken by "Alice", an ElevenLabs voice, generated with ElevenLabs text to speech
+(https://elevenlabs.io) using the project owner's account.
+
 ## Piper voices (downloaded at run time, not stored in this repository)
 
 From https://huggingface.co/rhasspy/piper-voices (pinned to commit `42301ec5`):

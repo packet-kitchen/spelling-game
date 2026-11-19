@@ -9,11 +9,7 @@ import { go, setKeyHandler } from '../router.js';
 import { createBuddy } from '../buddy.js';
 import { starsFor } from '../scheduler.js';
 
-export const PRAISE = ['Brilliant!', 'Super spelling!', 'Magical!', 'Fantastic!', 'Well done!', 'Amazing!',
-  "You're a star!", 'Sparkly spelling!', 'Wonderful!', 'Super-duper!', 'Perfect!', 'Hooray!'];
-export const PRAISE_SECOND = ['Well done! You got it!', 'Yes! You did it!', 'Great remembering!'];
-export const PRAISE_EFFORT = ['Well done for trying hard!', 'Good work! Keep practising.', 'You are getting there!'];
-export const NEARLY = ['So close!', 'Nearly!', 'Good try!', 'Nearly there!'];
+import { PRAISE, PRAISE_SECOND, PRAISE_EFFORT, NEARLY, missedPhrase, withName } from '../voice/phrases.js';
 
 export function btn(label, cls, onClick, attrs = {}) {
   const b = h('button', { class: 'btn ' + (cls || ''), type: 'button', tabindex: '-1', ...attrs }, label);
@@ -287,7 +283,8 @@ function feedbackPhase(ctx, e, typed, cmp, { final = false } = {}) {
     const n = [...e.text].filter((c) => c !== ' ').length;
     const nearly = pick(NEARLY);
     const got = cmp.matches > 0 ? `You got ${cmp.matches} out of ${n} letters right.` : '';
-    ctx.buddy.talk(`${nearly} ${got} Look at the pink letters.`.replace(/\s+/g, ' '), [nearly, got, 'Look at the pink letters.', e.text].filter(Boolean));
+    ctx.buddy.talk(`${nearly} ${got} Look at the pink letters.`.replace(/\s+/g, ' '),
+      [nearly, cmp.matches > 0 ? missedPhrase(n - cmp.matches) : '', 'Look at the pink letters.', e.text].filter(Boolean));
     ctx.setKeys((k) => {
       if (k === 'Enter') { done(); return true; }
       return true;
@@ -568,8 +565,7 @@ export async function celebrate(ctx, e, outcome) {
   if (outcome === 'first') text = pick(PRAISE);
   else if (outcome === 'second') text = pick(PRAISE_SECOND);
   else text = pick(PRAISE_EFFORT);
-  const name = state.settings.childName && Math.random() < 0.35 ? `, ${state.settings.childName}` : '';
-  const shown = text.replace(/!$/, `${name}!`);
+  const shown = Math.random() < 0.35 ? withName(text, state.settings.childName) : text;
   await ctx.buddy.talk(`${shown}  +${stars} ⭐`, shown);
   if (!ctx.alive()) return stars;
   await wait(250);

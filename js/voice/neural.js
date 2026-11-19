@@ -5,6 +5,8 @@
 // and every phrase is saved after it is made, so it plays instantly next time.
 
 import { state } from '../state.js';
+import { playSource, stopPlayback } from './player.js';
+import { cleanText } from './phrases.js';
 
 const HF = 'https://huggingface.co/rhasspy/piper-voices/resolve/42301ec547bc2939386cf0ae9f9050ca05b1d3af/';
 const MODEL_CACHE = 'unicorn-voice-models-v1';
@@ -191,10 +193,6 @@ let nowBatch = 0;
 let jobSeq = 0;
 let busy = false;
 
-function cleanText(text) {
-  return String(text || '').replace(/\s+/g, ' ').trim();
-}
-
 export function getClip(text, priority = 'now') {
   const t = cleanText(text);
   const key = clipKey(t);
@@ -295,9 +293,7 @@ export function prefetchNow(texts) {
 // ---------------------------------------------------------------------------
 // Playback
 
-let audio = null;
 let playToken = 0;
-let finishCurrent = null;
 
 function withTimeout(promise, ms) {
   return new Promise((resolve, reject) => {
@@ -338,41 +334,12 @@ export async function play(text) {
     }
   }
   if (my !== playToken) return true;
-  if (finishCurrent) finishCurrent();
-  return new Promise((resolve) => {
-    const url = URL.createObjectURL(blob);
-    if (!audio) audio = new Audio();
-    let done = false;
-    const finish = () => {
-      if (done) return;
-      done = true;
-      clearTimeout(timer);
-      audio.onended = null;
-      audio.onerror = null;
-      if (audio.src === url) {
-        audio.pause();
-        audio.removeAttribute('src');
-      }
-      URL.revokeObjectURL(url);
-      if (finishCurrent === finish) finishCurrent = null;
-      resolve(true);
-    };
-    const seconds = Math.max(0.3, (blob.size - 44) / 2 / 16000);
-    const timer = setTimeout(finish, seconds * 1000 + 2500);
-    finishCurrent = finish;
-    audio.onended = finish;
-    audio.onerror = finish;
-    audio.src = url;
-    const p = audio.play();
-    if (p && p.catch) p.catch(finish);
-  });
+  await playSource(blob);
+  return true;
 }
 
 export function stop() {
   playToken++;
-  if (audio) {
-    try { audio.pause(); } catch { /* ignore */ }
-  }
-  if (finishCurrent) finishCurrent();
+  stopPlayback();
 }
 

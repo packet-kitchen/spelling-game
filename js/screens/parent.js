@@ -2,15 +2,16 @@
 import { h, clear, shake, formatDate, dialog } from '../ui.js';
 import {
   state, save, saveNow, builtInLists, allLists, isListActive, findList, newId,
-  replaceState, resetState, defaultState, activeEntries,
+  replaceState, resetState, defaultState, activeEntries, focusEntries,
 } from '../state.js';
 import { parseWordInput, wordKey, cleanWord, trickyFor, sentenceHasWord } from '../wordutils.js';
 import { stageOf, STAGE_LABEL, blankProgress } from '../scheduler.js';
-import { englishVoices, chosenVoice, sayWord, say, speechAvailable } from '../speech.js';
+import { englishVoices, chosenVoice, sayWord, say, speechAvailable, prepare } from '../speech.js';
 import { go, setKeyHandler } from '../router.js';
 import { UNICORNS } from '../unicorns.js';
 import * as voice from '../voice/neural.js';
-import { commonPhrases, entryPhrases } from '../voice/phrases.js';
+import * as eleven from '../voice/eleven.js';
+import { fixedPhrases, entryPhrases } from '../voice/phrases.js';
 
 // ---------------------------------------------------------------------------
 // Gate: a sum that a 7-year-old is unlikely to know yet.
@@ -294,7 +295,7 @@ export function listEditor(root, { id }) {
     if (makeFocus) state.focusListId = draft.id;
     else if (state.focusListId === draft.id) state.focusListId = null;
     saveNow();
-    voice.prefetch(entryPhrases(draft.words), makeFocus ? 'soon' : 'later');
+    prepare(entryPhrases(draft.words), makeFocus ? 'soon' : 'later');
     currentTab = 'lists';
     go('parentHome');
   };
@@ -485,11 +486,12 @@ function settingsTab(body) {
       h('div', { class: 'row-buttons' },
         h('button', { class: 'btn danger', type: 'button', onclick: resetProgress }, 'Reset progress (keep lists and settings)'),
         h('button', { class: 'btn danger', type: 'button', onclick: resetAll }, 'Delete everything'))),
-    h('p', { class: 'muted' }, 'Unicorn Spelling · words from the National Curriculum in England (Year 2) · no accounts, no adverts, nothing leaves this device.'));
+    h('p', { class: 'muted' }, 'Unicorn Spelling · words from the National Curriculum in England (Year 2) · no accounts, no adverts. ',
+      'Progress stays on this Chromebook. With the Alice voice, new words and sentences are sent to ElevenLabs to be spoken; nothing else leaves this device.'));
   return stopListening;
 }
 
-// Voice settings: natural (Piper) voice or the Chromebook's own voices.
+// Voice settings: ElevenLabs (Alice), offline natural voice (Cori) or the Chromebook's own voices.
 function voiceCard(area, s, set) {
   const unsubs = [];
   const draw = () => {
@@ -499,15 +501,18 @@ function voiceCard(area, s, set) {
     const engine = (value, title, note) => h('label', { class: 'engine-option' + (s.voiceEngine === value ? ' on' : '') },
       h('input', {
         type: 'radio', name: 'engine', value, checked: s.voiceEngine === value ? true : undefined,
-        onchange: () => { set('voiceEngine', value); voice.settingsChanged(); draw(); },
+        onchange: () => { set('voiceEngine', value); set('voiceChosen', true); voice.settingsChanged(); draw(); },
       }),
       h('span', {}, h('b', {}, title), h('br'), h('span', { class: 'muted' }, note)));
 
     area.append(h('div', { class: 'engine-options' },
-      engine('piper', 'Natural voice (recommended)', 'Made on this Chromebook. Downloads once (about 63 MB), then works offline. Nothing is sent anywhere.'),
-      engine('browser', 'Chromebook voice', "Uses the voices built into Chrome. No download, but they sound more robotic.")));
+      engine('eleven', 'Alice – ElevenLabs (recommended)', 'The most natural voice. Instructions, praise and the Year 2 tricky words are already recorded. New words, like this week\'s school list, are made with your ElevenLabs key.'),
+      engine('piper', 'Cori – offline natural voice', 'Made on this Chromebook. Downloads once (about 63 MB), then works offline. Nothing is sent anywhere.'),
+      engine('browser', 'Chromebook voice', 'Uses the voices built into Chrome. No download, but they sound more robotic.')));
 
-    if (natural) {
+    if (s.voiceEngine === 'eleven') {
+      elevenSettings(area, unsubs);
+    } else if (natural) {
       const sel = h('select', { class: 'text-input', onchange: (e) => { set('piperVoice', e.target.value); voice.settingsChanged(); } },
         voice.PIPER_VOICES.map((v) => h('option', { value: v.id, selected: s.piperVoice === v.id ? true : undefined }, `${v.name} – ${v.about}`)));
       const statusLine = h('div', { class: 'voice-status' });
@@ -544,7 +549,7 @@ function voiceCard(area, s, set) {
     const rate = h('input', {
       type: 'range', min: '0.6', max: '1.1', step: '0.05', value: String(s.rate),
       oninput: (e) => { set('rate', Number(e.target.value)); rateOut.textContent = rateLabel(); },
-      onchange: () => voice.prefetch(commonPhrases(), 'later'),
+      onchange: () => prepare(fixedPhrases(s.childName), 'later'),
     });
     area.append(
       h('label', { class: 'field' }, h('span', {}, 'Speaking speed'), h('div', { class: 'range-row' }, rate, rateOut)),
@@ -566,6 +571,64 @@ function voiceCard(area, s, set) {
 
   draw();
   return () => unsubs.forEach((fn) => fn());
+}
+
+// ElevenLabs key: kept on this Chromebook only (not in backups, not in the website).
+function elevenSettings(area, unsubs) {
+  const input = h('input', {
+    type: 'password', class: 'text-input', autocomplete: 'off', spellcheck: 'false',
+    placeholder: eleven.getKey() ? '•••••••• (saved – paste a new key to replace it)' : 'Paste your ElevenLabs API key',
+    'aria-label': 'ElevenLabs API key',
+  });
+  const status = h('div', { class: 'voice-status' });
+  const credits = h('p', { class: 'muted' });
+  const forget = h('button', { class: 'btn small', type: 'button', onclick: () => { eleven.setKey(''); input.placeholder = 'Paste your ElevenLabs API key'; updateCredits(); } }, 'Forget key');
+  const draw = () => {
+    clear(status);
+    const st = eleven.elevenStatus;
+    const has = !!eleven.getKey();
+    forget.hidden = !has;
+    const line = (cls, text) => status.append(h('p', { class: cls }, text));
+    if (!has) line('muted', 'No key yet: recorded phrases play as Alice; new words use the Chromebook voice until a key is added.');
+    else if (st.key === 'ok') line('form-msg', '✅ Key works. New words are made as Alice and saved on this Chromebook.');
+    else if (st.key === 'bad') line('form-msg error', '⚠️ ElevenLabs did not accept this key.');
+    else if (st.key === 'no-credits') line('form-msg error', '⚠️ The ElevenLabs account has run out of credits. New words use the Chromebook voice for now.');
+    else line('muted', 'Key saved on this Chromebook.');
+    if (st.error && st.key !== 'bad' && st.key !== 'no-credits') line('form-msg error', st.error);
+  };
+  const saveKey = async () => {
+    const key = input.value.trim();
+    if (!key) return;
+    eleven.setKey(key);
+    input.value = '';
+    input.placeholder = '•••••••• (saved – paste a new key to replace it)';
+    try {
+      await eleven.testKey(key);
+      updateCredits();
+      await prepare(entryPhrases(focusEntries()), 'soon');
+      updateCredits();
+    } catch { /* status shows the problem */ }
+  };
+  const updateCredits = async () => {
+    const n = await eleven.creditsNeeded(entryPhrases(focusEntries()));
+    credits.textContent = focusEntries().length
+      ? (n ? `This week's list still needs about ${n} credits to make (once).` : "This week's list is ready in Alice's voice.")
+      : '';
+  };
+  unsubs.push(eleven.onElevenStatus(draw));
+  draw();
+  updateCredits();
+  area.append(
+    h('label', { class: 'field' }, h('span', {}, 'ElevenLabs API key (saved only on this Chromebook)'),
+      h('div', { class: 'key-row' }, input,
+        h('button', { class: 'btn primary', type: 'button', onclick: saveKey }, 'Save and test'),
+        forget)),
+    status,
+    credits,
+    h('p', { class: 'muted credit' },
+      'Alice voice by ElevenLabs. Each new word with its sentence uses about 20 credits, once – it is then saved on this Chromebook. ',
+      'Tip: in ElevenLabs, create a key that can only do Text to Speech and give it a monthly credit limit.'));
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); saveKey(); } });
 }
 
 function drawStatus(el) {

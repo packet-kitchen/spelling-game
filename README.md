@@ -2,7 +2,7 @@
 
 A unicorn-themed spelling game for a Year 2 child (age 6–7) in England.
 It runs in Chrome on a Chromebook and can be installed as an app. There are
-no accounts and no adverts, and nothing leaves the device.
+no accounts and no adverts, and progress stays on the device.
 
 * **Talks to the child.** Every word, sentence and instruction is spoken
   aloud, so the child can play on their own.
@@ -64,22 +64,37 @@ Child's name, words per mission, voice and speaking speed, on-screen keyboard
 
 ### Voice
 
-The game speaks with a **natural British voice ("Cori")** generated on the
-Chromebook itself by [Piper](https://github.com/rhasspy/piper), an open-source
-neural text-to-speech engine.
+The game speaks with **Alice**, a natural British voice from
+[ElevenLabs](https://elevenlabs.io).
 
-* The first time the game opens it downloads the voice (about 63 MB, from Hugging Face)
-  in the background. The home screen shows *"Getting the unicorn voice…"* while this
-  happens, and the Chromebook's own voice is used until it is ready.
-* After that it works **offline**. Each phrase is saved once it has been made, so
-  instructions, praise and words that come up again play instantly.
-* This week's words are prepared in the background when a list is saved, and each
-  mission prepares its words as it starts.
-* Nothing is sent anywhere: the text is turned into speech on the Chromebook.
+* **Already recorded:** every instruction, all the praise, the unicorn names and
+  the 64 Year 2 tricky words with their sentences are published with the game
+  (`audio/alice/`). They play instantly, work offline and need no account.
+* **New words** (this week's school list, other lists) are made by ElevenLabs the
+  first time they are needed, using **your ElevenLabs API key**:
+  **Grown-ups → Settings → Voice → ElevenLabs API key → Save and test.**
+  The key is kept only in Chrome on this Chromebook. It is not part of the website
+  and not included in backups. Each new word with its sentence uses about 20 credits,
+  **once**: it is then saved on the Chromebook. Saving a school list makes its
+  words straight away, so they are ready (and work offline) before Amy plays.
+* Without a key, anything not recorded is read by the Chromebook's own voice.
+* Tip: in ElevenLabs create a key that can only do *Text to Speech*, with a monthly
+  credit limit.
 
-**Settings → Voice** lets you pick another British voice (Jenny, Alba, Southern),
-change the speaking speed, switch back to the Chromebook's built-in voices, or
-remove the downloaded voice to free up space.
+Other voices in **Settings → Voice**:
+
+* **Cori:** an offline natural voice made on the Chromebook by
+  [Piper](https://github.com/rhasspy/piper). It downloads once (about 63 MB) and
+  needs no account.
+* **Chromebook voice:** Chrome's built-in voices.
+
+#### Recording more phrases (for developers)
+
+`node tools/record-voice.mjs` records any fixed phrase or pre-recorded word that is
+missing from `audio/alice/manifest.json` (use `--dry-run` to see what it would do,
+and `CHILD_NAME=…` for name lines). It needs an ElevenLabs key in
+`ELEVENLABS_API_KEY`, or a proxy that adds the `xi-api-key` header. `npm test`
+fails if a phrase in `js/voice/phrases.js` has not been recorded.
 
 ## Putting it on the Chromebook
 
@@ -120,9 +135,14 @@ js/wordutils.js       comparing spellings, tricky-bit guessing, parsing pasted l
 js/scheduler.js       the learning ladder, spaced repetition, choosing mission words
 js/state.js           saved data (localStorage), lists, rewards
 js/speech.js          text-to-speech
-js/voice/neural.js    natural voice: download, background generation, saved clips, playback
+js/voice/phrases.js   everything the game says (the list that gets recorded)
+js/voice/eleven.js    Alice (ElevenLabs): recorded clips, new words with the grown-up's key
+js/voice/eleven-config.js  voice, model and format used for recordings
+js/voice/player.js    plays one clip at a time
+tools/record-voice.mjs  records missing phrases into audio/alice/
+audio/alice/          recorded clips + manifest.json
+js/voice/neural.js    Cori (Piper): download, background generation, saved clips, playback
 js/voice/piper-worker.js  the worker that runs Piper (phonemizer + ONNX model)
-js/voice/phrases.js   phrases prepared in advance
 vendor/               onnxruntime-web and the espeak-ng/piper-phonemize WebAssembly build (see vendor/NOTICE.md)
 js/sfx.js             sound effects (Web Audio, no files)
 js/unicorns.js        unicorn artwork (SVG) and the collection

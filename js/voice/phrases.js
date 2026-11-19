@@ -1,20 +1,56 @@
-// Phrases the game says a lot. They are prepared in the background as soon as
-// the natural voice is ready, so instructions and praise play without a pause.
-import { state, focusEntries } from '../state.js';
-import { PRAISE, PRAISE_SECOND, PRAISE_EFFORT, NEARLY } from '../screens/play.js';
+// Everything the game says out loud, apart from the spelling words and their
+// sentences. Keeping it to a fixed list means every line can be recorded once
+// (see tools/record-voice.mjs) and played back instantly.
+//
+// This module must stay free of browser-only code: the recording script
+// imports it in Node.
 
-export function commonPhrases() {
-  const name = state.settings.childName;
-  const withName = (t) => (name ? t.replace(/!$/, `, ${name}!`) : t);
-  const per = state.settings.wordsPerMission;
+import { UNICORNS } from '../unicorns.js';
+import { BUILT_IN_LISTS } from '../words.js';
+import { parseMarked } from '../wordutils.js';
+
+export const PRAISE = ['Brilliant!', 'Super spelling!', 'Magical!', 'Fantastic!', 'Well done!', 'Amazing!',
+  "You're a star!", 'Sparkly spelling!', 'Wonderful!', 'Super-duper!', 'Perfect!', 'Hooray!'];
+export const PRAISE_SECOND = ['Well done! You got it!', 'Yes! You did it!', 'Great remembering!'];
+export const PRAISE_EFFORT = ['Well done for trying hard!', 'Good work! Keep practising.', 'You are getting there!'];
+export const NEARLY = ['So close!', 'Nearly!', 'Good try!', 'Nearly there!'];
+
+export function withName(text, name) {
+  return name ? text.replace(/!$/, `, ${name}!`) : text;
+}
+
+export function greeting(name) {
+  return name ? `Hi ${name}!` : 'Hi there!';
+}
+
+export function letsGo(name) {
+  return name ? `Let's go, ${name}!` : "Let's go!";
+}
+
+// Spoken after a near miss (the number of right letters is shown on screen).
+export function missedPhrase(missed) {
+  if (missed <= 1) return 'Just one letter to fix.';
+  if (missed === 2) return 'Just two letters to fix.';
+  return 'Some letters need fixing.';
+}
+
+export function cleanText(text) {
+  return String(text || '').replace(/\s+/g, ' ').trim();
+}
+
+// Every fixed line, for the given child's name.
+export function fixedPhrases(name = '') {
   const praise = [...PRAISE, ...PRAISE_SECOND, ...PRAISE_EFFORT];
-  return [
-    // home + mission start (most urgent first)
-    name ? `Hi ${name}!` : 'Hi there!',
+  const lines = [
+    // home and mission start
+    greeting(''), greeting(name),
     'Ready for some magic spelling?',
     'Tap the rainbow to start a mission.',
-    name ? `Let's go, ${name}!` : "Let's go!",
-    `Spell ${per} words to fill the rainbow.`,
+    'You have a surprise waiting! Tap the present.',
+    'Ask a grown-up to choose some spelling words for you.',
+    letsGo(''), letsGo(name),
+    'Spell the words to fill the rainbow.',
+    "Let's practise the tricky words from your test.",
     // look, cover, write
     'A new word!',
     "Look carefully at the pink letters. When you have remembered it, press, I'm ready.",
@@ -37,28 +73,53 @@ export function commonPhrases() {
     'Copy the letters one by one.',
     // praise and encouragement
     ...praise,
-    ...praise.map(withName),
+    ...praise.map((t) => withName(t, name)),
     ...NEARLY,
-    // end of mission, presents, unicorns
+    missedPhrase(1), missedPhrase(2), missedPhrase(3),
+    // end of a mission, presents and unicorns
     'Hooray! Mission complete!',
+    'Look at all your stars!',
     'And you have a surprise! Tap the present.',
     'A surprise for you! Tap the present to open it.',
-    'You have a surprise waiting! Tap the present.',
+    'Wow!',
+    'A new unicorn friend wants to play with you!',
+    'Here are all your unicorn friends!',
     'Tap a unicorn to make it your buddy.',
     'Keep spelling to find this unicorn!',
+    'Hello!',
+    ...UNICORNS.flatMap((u) => [`Meet ${u.name}!`, `${u.name} is your buddy now!`]),
     'Do you want to stop playing?',
     // practice test
+    "Ask a grown-up to add this week's spelling list.",
     'This is a practice spelling test, just like at school.',
     'Listen to each word, spell it, and press next. Press start when you are ready.',
-    ...Array.from({ length: 12 }, (_, i) => `Number ${i + 1}.`),
+    ...Array.from({ length: 20 }, (_, i) => `Number ${i + 1}.`),
+    'Wow! You got them all right!',
+    'You get 5 bonus stars!',
+    "Let's practise the tricky ones.",
+    'Good effort!',
+    'Practising will help you remember the tricky ones.',
+    // grown-ups' "Test the voice" button
+    'Can you spell, beautiful?',
   ];
+  return [...new Set(lines.map(cleanText).filter(Boolean))];
 }
 
-// This week's words and sentences: the ones most worth having ready.
-export function focusPhrases() {
-  return focusEntries().flatMap((e) => [e.text, e.sentence]).filter(Boolean);
-}
-
+// Words and sentences of a list of entries ({ text, sentence }).
 export function entryPhrases(entries) {
-  return entries.flatMap((e) => [e.text, e.sentence]).filter(Boolean);
+  return entries.flatMap((e) => [e.text, e.sentence]).map(cleanText).filter(Boolean);
+}
+
+// Words that are recorded in advance (the rest are made when first needed).
+export const RECORDED_LISTS = ['y2-tricky'];
+
+export function recordedWordPhrases() {
+  const out = [];
+  for (const list of BUILT_IN_LISTS.filter((l) => RECORDED_LISTS.includes(l.id))) {
+    for (const raw of list.words) {
+      const [marked, sentence = ''] = raw.split('|');
+      out.push(parseMarked(marked).text, sentence);
+    }
+  }
+  return [...new Set(out.map(cleanText).filter(Boolean))];
 }

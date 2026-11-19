@@ -9,6 +9,7 @@ import { getUnicorn, unicornSVG } from '../unicorns.js';
 import { btn } from './play.js';
 import { stageOf } from '../scheduler.js';
 import { voiceStatus, onVoiceStatus } from '../voice/neural.js';
+import { greeting } from '../voice/phrases.js';
 
 export function startScreen(root) {
   let started = false;
@@ -80,7 +81,7 @@ export function homeScreen(root, params = {}) {
   showVoice(voiceStatus);
   const stopVoiceChip = onVoiceStatus(showVoice);
 
-  const hi = name ? `Hi ${name}!` : 'Hi there!';
+  const hi = greeting(name);
   let text;
   let speech;
   if (gifts > 0) {
@@ -88,7 +89,7 @@ export function homeScreen(root, params = {}) {
     speech = [hi, 'You have a surprise waiting! Tap the present.'];
   } else if (!entries.length) {
     text = `${hi} Ask a grown-up to choose your spelling words.`;
-    speech = text;
+    speech = [hi, 'Ask a grown-up to choose some spelling words for you.'];
   } else {
     text = `${hi} Ready for some magic spelling?`;
     speech = [hi, 'Ready for some magic spelling?', 'Tap the rainbow to start a mission.'];

@@ -16,7 +16,8 @@ export function defaultState() {
     settings: {
       childName: 'Amy',
       wordsPerMission: 8,
-      voiceEngine: 'piper', // 'piper' (natural voice) or 'browser' (Chromebook voices)
+      voiceEngine: 'eleven', // 'eleven' (Alice), 'piper' (Cori, offline) or 'browser' (Chromebook voices)
+      voiceChosen: false, // set once a grown-up picks a voice in Settings
       piperVoice: 'en_GB-cori-medium',
       voiceURI: '',
       rate: 0.85,
@@ -57,6 +58,8 @@ export function migrate(data) {
   const out = { ...d, ...data };
   out.settings = { ...d.settings, ...(data.settings || {}) };
   out.settings.builtInOn = { ...d.settings.builtInOn, ...((data.settings || {}).builtInOn || {}) };
+  // Until a grown-up chooses a voice, use the current recommended one.
+  if (!out.settings.voiceChosen) out.settings.voiceEngine = d.settings.voiceEngine;
   if (!Array.isArray(out.customLists)) out.customLists = [];
   if (!Array.isArray(out.unicorns) || !out.unicorns.length) out.unicorns = ['sparkle'];
   out.unicorns = out.unicorns.filter((id) => UNICORNS.some((u) => u.id === id));

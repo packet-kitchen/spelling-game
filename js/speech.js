@@ -1,8 +1,12 @@
-// Text-to-speech. Uses the natural Piper voice when it is ready (see
-// voice/neural.js), otherwise the Chromebook's built-in voices.
+// Text-to-speech. Uses the voice chosen in the grown-ups settings:
+//   'eleven'  ElevenLabs "Alice" (voice/eleven.js): recorded clips + new words with a key
+//   'piper'   the offline natural voice "Cori" (voice/neural.js)
+//   'browser' the Chromebook's built-in voices
+// Whatever the chosen voice can't say falls back to the Chromebook voice.
 
 import { state } from './state.js';
 import * as neural from './voice/neural.js';
+import * as eleven from './voice/eleven.js';
 
 const synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
 let voices = [];
@@ -50,10 +54,17 @@ export function chosenVoice() {
 
 // Speak one piece of text. Always resolves (even if speech fails or hangs).
 export function speak(text, opts = {}) {
-  if (text && String(text).trim() && neural.wanted()) {
-    return neural.play(text).then((ok) => (ok ? undefined : browserSpeak(text, opts)));
-  }
+  const t = text && String(text).trim();
+  if (t && eleven.wanted()) return eleven.play(t).then((ok) => (ok ? undefined : browserSpeak(t, opts)));
+  if (t && neural.wanted()) return neural.play(t).then((ok) => (ok ? undefined : browserSpeak(t, opts)));
   return browserSpeak(text, opts);
+}
+
+// Get phrases ready ahead of time with whichever voice is chosen.
+export function prepare(texts, priority = 'later') {
+  if (eleven.wanted()) return eleven.prepare(texts);
+  if (neural.wanted()) neural.prefetch(texts, priority);
+  return Promise.resolve();
 }
 
 function browserSpeak(text, opts = {}) {
@@ -94,14 +105,16 @@ export async function say(...parts) {
   const my = ++token;
   stop(false);
   const list = parts.flat().filter((p) => typeof p === 'number' || (p && String(p).trim()));
-  neural.prefetchNow(list.filter((p) => typeof p === 'string'));
+  const strings = list.filter((p) => typeof p === 'string');
+  if (eleven.wanted()) eleven.prepare(strings);
+  else neural.prefetchNow(strings);
   await pause(40); // Chrome sometimes drops speech queued straight after cancel()
   for (const p of list) {
     if (my !== token) return false;
     if (typeof p === 'number') { await pause(p); continue; }
     await speak(p);
     if (my !== token) return false;
-    await pause(neural.isReady() ? 120 : 220);
+    await pause(eleven.wanted() ? 100 : neural.isReady() ? 120 : 220);
   }
   return my === token;
 }
@@ -109,6 +122,7 @@ export async function say(...parts) {
 export function stop(bumpToken = true) {
   if (bumpToken) token++;
   neural.stop();
+  eleven.stop();
   if (synth) {
     try { synth.cancel(); } catch { /* ignore */ }
   }

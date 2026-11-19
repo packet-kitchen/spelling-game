@@ -6,7 +6,10 @@ import { testScreen } from './screens/test.js';
 import { stableScreen, giftScreen } from './screens/stable.js';
 import { parentGate, parentHome, listEditor } from './screens/parent.js';
 import * as voice from './voice/neural.js';
-import { commonPhrases, focusPhrases } from './voice/phrases.js';
+import * as eleven from './voice/eleven.js';
+import { prepare } from './speech.js';
+import { fixedPhrases, entryPhrases } from './voice/phrases.js';
+import { focusEntries } from './state.js';
 
 register('start', startScreen);
 register('home', homeScreen);
@@ -25,12 +28,18 @@ go('start');
 // background; the Chromebook voice is used until it is ready).
 voice.onVoiceStatus((s) => {
   if (s.status === 'ready') {
-    voice.prefetch(commonPhrases(), 'later');
-    voice.prefetch(focusPhrases(), 'later');
+    voice.prefetch(fixedPhrases(state.settings.childName), 'later');
+    voice.prefetch(entryPhrases(focusEntries()), 'later');
   }
 });
 if (voice.wanted()) voice.ensureLoaded();
 else voice.settingsChanged();
+
+// ElevenLabs voice: recorded phrases are ready at once; with a key, anything
+// still missing (a new name, this week's words) is made in the background.
+if (eleven.wanted()) {
+  eleven.loadManifest().then(() => prepare([...fixedPhrases(state.settings.childName), ...entryPhrases(focusEntries())]));
+}
 
 // Works offline once loaded, and can be installed as an app from Chrome's menu.
 if ('serviceWorker' in navigator && location.protocol !== 'file:' && !/[?&]nosw\b/.test(location.search)) {
