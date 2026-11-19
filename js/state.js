@@ -14,7 +14,7 @@ export function defaultState() {
   return {
     version: STATE_VERSION,
     settings: {
-      childName: '',
+      childName: 'Amy',
       wordsPerMission: 8,
       voiceURI: '',
       rate: 0.85,
