@@ -1,7 +1,7 @@
 // Offline support. Files are served from the cache straight away and refreshed
 // in the background, so an update shows up the next time the game is opened.
 // Bump VERSION when releasing changes.
-const VERSION = 'v3';
+const VERSION = 'v4';
 const CACHE = `unicorn-spelling-${VERSION}`;
 // Runtime files for the natural voice never change for a given path, so they
 // live in their own cache that survives app updates. (Rename the cache if a
@@ -38,7 +38,6 @@ const FILES = [
   './js/speech.js',
   './js/sfx.js',
   './js/ui.js',
-  './js/keyboard.js',
   './js/buddy.js',
   './js/unicorns.js',
   './js/screens/home.js',

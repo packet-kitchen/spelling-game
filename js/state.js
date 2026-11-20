@@ -21,8 +21,6 @@ export function defaultState() {
       piperVoice: 'en_GB-cori-medium',
       voiceURI: '',
       rate: 0.85,
-      keyboardLayout: 'qwerty',
-      showKeyboard: true,
       sounds: true,
       calm: false,
       builtInOn,

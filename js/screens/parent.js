@@ -454,11 +454,6 @@ function settingsTab(body) {
     h('input', { type: 'checkbox', checked: s[key] ? true : undefined, onchange: (e) => { set(key, e.target.checked); if (after) after(); } }),
     h('span', {}, label));
 
-  const layout = h('div', { class: 'radio-row' }, [['qwerty', 'Like the Chromebook keyboard (qwerty)'], ['abc', 'Alphabetical (abc)']].map(([v, label]) =>
-    h('label', { class: 'check-field' },
-      h('input', { type: 'radio', name: 'layout', value: v, checked: s.keyboardLayout === v ? true : undefined, onchange: () => set('keyboardLayout', v) }),
-      h('span', {}, label))));
-
   const fileInput = h('input', { type: 'file', accept: 'application/json,.json', class: 'hidden-file', onchange: (e) => restore(e.target.files[0]) });
 
   body.append(
@@ -469,9 +464,6 @@ function settingsTab(body) {
     h('section', { class: 'card' }, h('h2', {}, 'Voice'), voiceArea),
     h('section', { class: 'card' },
       h('h2', {}, 'Game'),
-      check('showKeyboard', 'Show the on-screen keyboard (handy for touchscreens; the Chromebook keys always work)'),
-      h('p', { class: 'muted' }, 'On-screen keyboard layout:'),
-      layout,
       check('sounds', 'Sound effects'),
       check('calm', 'Calm colours (cream background, fewer sparkles; can help some readers)', () => document.body.classList.toggle('calm', s.calm))),
     h('section', { class: 'card' },

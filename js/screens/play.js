@@ -4,7 +4,6 @@ import { state } from '../state.js';
 import { trickyFor, compareSpelling, blankSentence, decoyLetters, scrambleTiles, sameLetter } from '../wordutils.js';
 import { say, stop } from '../speech.js';
 import { sfx } from '../sfx.js';
-import { createKeyboard, gameKey } from '../keyboard.js';
 import { go, setKeyHandler } from '../router.js';
 import { createBuddy } from '../buddy.js';
 import { starsFor } from '../scheduler.js';
@@ -26,8 +25,17 @@ function wordParts(e) {
   return e.sentence ? [e.text, e.sentence, e.text] : [e.text, 600, e.text];
 }
 
+// The Chromebook's own keyboard is used for typing. Turn a KeyboardEvent key
+// into what the game understands, or null.
+export function gameKey(key) {
+  if (key === 'Backspace' || key === 'Enter' || key === ' ') return key;
+  if (key === '\u2019' || key === '`') return "'";
+  if (key.length === 1 && /[a-z'\-]/i.test(key)) return key.toLowerCase();
+  return null;
+}
+
 // ---------------------------------------------------------------------------
-// Layout: top bar (home, rainbow progress, stars), buddy, stage, keyboard.
+// Layout: top bar (home, rainbow progress, stars), buddy, stage.
 export function createPlay(root, { kind = 'mission', label = '' } = {}) {
   const session = { dead: false };
   let roundKeys = null;
@@ -43,15 +51,10 @@ export function createPlay(root, { kind = 'mission', label = '' } = {}) {
   const buddy = createBuddy({ alive: () => !session.dead });
   const stage = h('div', { class: 'stage' });
   const controls = h('div', { class: 'controls' });
-  const kbHost = h('div', { class: 'kbd-host' });
   const screen = h('div', { class: `screen play-screen ${kind}` },
     top,
-    h('div', { class: 'play' }, h('div', { class: 'buddy-col' }, buddy.el), h('div', { class: 'stage-col' }, stage, controls)),
-    kbHost);
+    h('div', { class: 'play' }, h('div', { class: 'buddy-col' }, buddy.el), h('div', { class: 'stage-col' }, stage, controls)));
   root.append(screen);
-
-  const kb = createKeyboard(kbHost, { onKey: (k) => handle(k) });
-  kb.enable(false);
 
   function handle(k) {
     if (session.dead || !roundKeys) return false;
@@ -61,7 +64,6 @@ export function createPlay(root, { kind = 'mission', label = '' } = {}) {
   setKeyHandler((key) => {
     const k = gameKey(key);
     if (k === null) return false;
-    if (k.length === 1 && k !== ' ') kb.flash(k);
     return handle(k);
   });
 
@@ -92,7 +94,6 @@ export function createPlay(root, { kind = 'mission', label = '' } = {}) {
     screen,
     stage,
     controls,
-    kb,
     buddy,
     told: {},
     alive: () => !session.dead,
@@ -167,8 +168,6 @@ function lookPhase(ctx, e, { again = false } = {}) {
     const ready = btn("I'm ready! ✨", 'primary big', () => begin(null));
     ctx.show([h('div', { class: 'phase-tag' }, '👀 Look'), wordEl(e.text, tricky, { cls: 'look' }), sentenceEl(e, { blank: false })],
       [hearBtn(e), ready]);
-    ctx.kb.setExtras(e.text);
-    ctx.kb.enable(true);
     ctx.setKeys((k) => {
       if (k === 'Enter') { begin(null); return true; }
       if (k === 'Backspace') return true;
@@ -223,12 +222,9 @@ function typePhase(ctx, e, { mode = 'listen', firstKey = null, intro = '' } = {}
         return;
       }
       ctx.setKeys(null);
-      ctx.kb.enable(false);
       resolve(typed.join(''));
     };
 
-    ctx.kb.setExtras(e.text);
-    ctx.kb.enable(true);
     ctx.setKeys((k) => {
       if (k === 'Enter') { submit(); return true; }
       if (k === 'Backspace') {
@@ -277,7 +273,6 @@ function feedbackPhase(ctx, e, typed, cmp, { final = false } = {}) {
     };
     const next = btn(final ? "Let's write it together ➜" : 'Try again ➜', 'primary big', done);
     ctx.show([h('div', { class: 'feedback' }, yours, right)], [next]);
-    ctx.kb.enable(false);
     sfx.oops();
     ctx.buddy.setMood('normal');
     const n = [...e.text].filter((c) => c !== ' ').length;
@@ -297,14 +292,11 @@ function copyPhase(ctx, e) {
   return new Promise((resolve) => {
     const chars = [...e.text];
     let pos = 0;
-    let misses = 0;
     const skipSpaces = () => { while (chars[pos] === ' ') pos++; };
     const model = wordEl(e.text, new Set(), { cls: 'model' });
     const modelChars = [...model.children];
     const line = h('div', { class: 'typed-line copy' });
     ctx.show([h('div', { class: 'phase-tag' }, '✏️ Copy it'), model, line], [hearBtn(e)]);
-    ctx.kb.setExtras(e.text);
-    ctx.kb.enable(true);
     const draw = () => {
       clear(line);
       for (let i = 0; i < pos; i++) line.append(h('span', { class: 'ch' }, chars[i] === ' ' ? ' ' : chars[i]));
@@ -319,8 +311,6 @@ function copyPhase(ctx, e) {
       if (sameLetter(k, chars[pos])) {
         pos++;
         skipSpaces();
-        misses = 0;
-        ctx.kb.clearHints();
         sfx.key();
         draw();
         if (pos >= chars.length) {
@@ -328,10 +318,8 @@ function copyPhase(ctx, e) {
           resolve();
         }
       } else {
-        misses++;
         sfx.wobble();
         shake(modelChars[pos]);
-        if (misses >= 1) ctx.kb.hint(chars[pos]);
       }
       return true;
     });
@@ -355,8 +343,6 @@ function missingPhase(ctx, e, idx, attempt) {
       return h('span', { class: 'ch' }, c);
     }));
     ctx.show([h('div', { class: 'phase-tag' }, '🧩 Missing letters'), word, sentenceEl(e, { blank: false })], [hearBtn(e)]);
-    ctx.kb.setExtras(e.text);
-    ctx.kb.enable(true);
     let n = 0;
     const draw = () => boxes.forEach((b, j) => {
       b.textContent = filled[j] || ' ';
@@ -377,7 +363,6 @@ function missingPhase(ctx, e, idx, attempt) {
       draw();
       if (n >= filled.length) {
         ctx.setKeys(() => true);
-        ctx.kb.enable(false);
         setTimeout(() => resolve(filled.slice()), 350);
       }
       return true;
@@ -413,8 +398,6 @@ function tilesPhase(ctx, e) {
     });
     const tray = h('div', { class: 'tray' }, tiles);
     ctx.show([h('div', { class: 'phase-tag' }, '🔤 Letter tiles'), slotRow, tray, sentenceEl(e)], [hearBtn(e)]);
-    ctx.kb.setExtras(e.text);
-    ctx.kb.enable(true);
 
     const markCurrent = () => slots.forEach((s, i) => s.classList.toggle('current', i === pos));
     markCurrent();
@@ -434,7 +417,6 @@ function tilesPhase(ctx, e) {
         markCurrent();
         if (pos >= chars.length) {
           ctx.setKeys(() => true);
-          ctx.kb.enable(false);
           const outcome = mistakes <= 1 ? 'first' : mistakes <= 3 ? 'second' : 'fail';
           setTimeout(() => resolve({ outcome, mistakes }), 300);
         }
@@ -465,7 +447,7 @@ function tilesPhase(ctx, e) {
 
     if (!ctx.told.tiles) {
       ctx.told.tiles = true;
-      ctx.buddy.talk('Tap the letters in the right order. Watch out, there are some extra letters!',
+      ctx.buddy.talk('Type or tap the letters in the right order. Watch out, there are some extra letters!',
         ['Put the letters in the right order to spell,', ...wordParts(e), 'Watch out! There are some extra letters.']);
     } else {
       ctx.buddy.talk('Put the letters in the right order.', ['Put the letters in order to spell,', ...wordParts(e)]);
@@ -552,7 +534,6 @@ export const ROUNDS = { look: roundLook, spell: roundSpell, missing: roundMissin
 // Happy moment after a word. Returns the stars given.
 export async function celebrate(ctx, e, outcome) {
   ctx.setKeys(() => true);
-  ctx.kb.enable(false);
   const stars = starsFor(outcome);
   const win = wordEl(e.text, new Set(), { cls: 'win' });
   ctx.show([win], []);

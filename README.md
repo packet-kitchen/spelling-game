@@ -55,8 +55,7 @@ the last way it was misspelt, recent test scores and the trickiest words.
 
 ### Settings
 
-Child's name, words per mission, voice and speaking speed, on-screen keyboard
-(qwerty like the Chromebook, or abc), sound effects, calm colours, and
+Child's name, words per mission, voice and speaking speed, sound effects, calm colours, and
 **backup/restore**.
 
 > **Important:** progress is stored in Chrome on this Chromebook only. Clearing
@@ -146,7 +145,6 @@ js/voice/piper-worker.js  the worker that runs Piper (phonemizer + ONNX model)
 vendor/               onnxruntime-web and the espeak-ng/piper-phonemize WebAssembly build (see vendor/NOTICE.md)
 js/sfx.js             sound effects (Web Audio, no files)
 js/unicorns.js        unicorn artwork (SVG) and the collection
-js/keyboard.js        on-screen keyboard
 js/screens/*.js       home, mission, test, unicorn stable, gift, grown-ups area
 sw.js                 offline cache. Bump VERSION when releasing changes
 ```
