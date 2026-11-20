@@ -1,6 +1,6 @@
 // ElevenLabs voice ("Alice").
 //
-// 1. Fixed phrases and the Year 2 tricky words are recorded in advance
+// 1. Fixed phrases and every word + sentence in the built-in lists are recorded in advance
 //    (audio/alice/, see tools/record-voice.mjs) and play straight away.
 // 2. Anything else (this week's school words, other lists) is made with the
 //    grown-up's ElevenLabs API key the first time it is needed, then saved in

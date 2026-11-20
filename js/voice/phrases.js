@@ -93,7 +93,8 @@ export function fixedPhrases(name = '') {
     "Ask a grown-up to add this week's spelling list.",
     'This is a practice spelling test, just like at school.',
     'Listen to each word, spell it, and press next. Press start when you are ready.',
-    ...Array.from({ length: 20 }, (_, i) => `Number ${i + 1}.`),
+    // enough for the longest built-in list (64 words)
+    ...Array.from({ length: 64 }, (_, i) => `Number ${i + 1}.`),
     'Wow! You got them all right!',
     'You get 5 bonus stars!',
     "Let's practise the tricky ones.",
@@ -110,8 +111,9 @@ export function entryPhrases(entries) {
   return entries.flatMap((e) => [e.text, e.sentence]).map(cleanText).filter(Boolean);
 }
 
-// Words that are recorded in advance (the rest are made when first needed).
-export const RECORDED_LISTS = ['y2-tricky'];
+// Word lists recorded in advance: all the built-in lists. (Words a grown-up
+// adds that aren't in these lists are made when first needed, with a key.)
+export const RECORDED_LISTS = BUILT_IN_LISTS.map((l) => l.id);
 
 export function recordedWordPhrases() {
   const out = [];

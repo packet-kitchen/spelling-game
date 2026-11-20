@@ -67,10 +67,14 @@ The game speaks with **Alice**, a natural British voice from
 [ElevenLabs](https://elevenlabs.io).
 
 * **Already recorded:** every instruction, all the praise, the unicorn names and
-  the 64 Year 2 tricky words with their sentences are published with the game
-  (`audio/alice/`). They play instantly, work offline and need no account.
-* **New words** (this week's school list, other lists) are made by ElevenLabs the
-  first time they are needed, using **your ElevenLabs API key**:
+  **every word and sentence in all the built-in lists** (Year 2 tricky words, Year 1
+  revision and all the Year 2 spelling patterns: about 750 clips) are published with
+  the game (`audio/alice/`). They play instantly, work offline and need **no
+  ElevenLabs account or key**.
+* When a school word is also in the built-in lists, the list editor fills in its
+  recorded sentence, so it needs no key either.
+* **Other new words** (school words that aren't in the built-in lists) are made by
+  ElevenLabs the first time they are needed, using **your ElevenLabs API key**:
   **Grown-ups → Settings → Voice → ElevenLabs API key → Save and test.**
   The key is kept only in Chrome on this Chromebook. It is not part of the website
   and not included in backups. Each new word with its sentence uses about 20 credits,

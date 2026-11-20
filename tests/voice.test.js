@@ -24,6 +24,12 @@ test('manifest matches the voice settings', () => {
   assert.equal(manifest.format, ELEVEN.outputFormat);
 });
 
+test('the practice test can number every word of the longest built-in list', async () => {
+  const { BUILT_IN_LISTS } = await import('../js/words.js');
+  const longest = Math.max(...BUILT_IN_LISTS.map((l) => l.words.length));
+  for (let i = 1; i <= longest; i++) assert.ok(manifest.clips[`Number ${i}.`], `Number ${i}.`);
+});
+
 test('phrase helpers', () => {
   assert.equal(withName('Brilliant!', 'Amy'), 'Brilliant, Amy!');
   assert.equal(withName('Good work! Keep practising.', 'Amy'), 'Good work! Keep practising.');

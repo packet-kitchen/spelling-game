@@ -498,7 +498,7 @@ function voiceCard(area, s, set) {
       h('span', {}, h('b', {}, title), h('br'), h('span', { class: 'muted' }, note)));
 
     area.append(h('div', { class: 'engine-options' },
-      engine('eleven', 'Alice – ElevenLabs (recommended)', 'The most natural voice. Instructions, praise and the Year 2 tricky words are already recorded. New words, like this week\'s school list, are made with your ElevenLabs key.'),
+      engine('eleven', 'Alice – ElevenLabs (recommended)', 'The most natural voice. Everything the game says, and every word in the built-in lists, is already recorded – no key needed. An ElevenLabs key is only needed for school words that aren\'t in those lists.'),
       engine('piper', 'Cori – offline natural voice', 'Made on this Chromebook. Downloads once (about 63 MB), then works offline. Nothing is sent anywhere.'),
       engine('browser', 'Chromebook voice', 'Uses the voices built into Chrome. No download, but they sound more robotic.')));
 
@@ -581,7 +581,7 @@ function elevenSettings(area, unsubs) {
     const has = !!eleven.getKey();
     forget.hidden = !has;
     const line = (cls, text) => status.append(h('p', { class: cls }, text));
-    if (!has) line('muted', 'No key yet: recorded phrases play as Alice; new words use the Chromebook voice until a key is added.');
+    if (!has) line('muted', 'No key needed for the built-in lists. Without a key, school words that aren\'t in those lists are read by the Chromebook voice.');
     else if (st.key === 'ok') line('form-msg', '✅ Key works. New words are made as Alice and saved on this Chromebook.');
     else if (st.key === 'bad') line('form-msg error', '⚠️ ElevenLabs did not accept this key.');
     else if (st.key === 'no-credits') line('form-msg error', '⚠️ The ElevenLabs account has run out of credits. New words use the Chromebook voice for now.');
@@ -603,6 +603,7 @@ function elevenSettings(area, unsubs) {
   };
   const updateCredits = async () => {
     const n = await eleven.creditsNeeded(entryPhrases(focusEntries()));
+    // (words from the built-in lists are recorded, so they never need credits)
     credits.textContent = focusEntries().length
       ? (n ? `This week's list still needs about ${n} credits to make (once).` : "This week's list is ready in Alice's voice.")
       : '';
